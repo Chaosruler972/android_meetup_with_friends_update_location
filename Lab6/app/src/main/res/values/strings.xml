@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Lab</string>
+    <string name="app_name">Lab6</string>
     <string name="get_cords_btn_str">Get Cordinates</string>
     <string name="map_api_key">AIzaSyA8ckyW0DtpJcyCNQvp7HqUIwVhU2iVgsY</string>
     <string name="enter_phone_number">Please enter phone number</string>
@@ -22,4 +22,5 @@
     <string name="seconds_sync">1</string>
     <string name="infinity">Infinity!</string>
     <string name="button_load_cntct">Load contact</string>
+    <string name="sec_in_millis">1000</string>
 </resources>

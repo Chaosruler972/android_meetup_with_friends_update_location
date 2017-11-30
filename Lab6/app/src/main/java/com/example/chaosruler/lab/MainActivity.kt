@@ -6,29 +6,25 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.content.pm.PackageManager
-import android.location.Location
+import android.location.Criteria
 import android.location.LocationListener
 import android.location.LocationManager
-import android.os.SystemClock
-import android.provider.Contacts
 import android.provider.ContactsContract
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.telephony.SmsManager
 import android.util.Log
 import android.view.View
-import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException
 import com.google.android.gms.common.GooglePlayServicesRepairableException
-import com.google.android.gms.common.api.GoogleApiClient
 import com.google.android.gms.location.places.Place
 import com.google.android.gms.location.places.ui.PlacePicker
 import kotlinx.android.synthetic.main.activity_main.*
 import android.widget.Toast
-import com.google.android.gms.location.LocationServices
 
 
-class MainActivity : Activity(),GoogleApiClient.ConnectionCallbacks,GoogleApiClient.OnConnectionFailedListener, LocationListener
+
+class MainActivity : Activity()
 {
 
     /*
@@ -46,18 +42,35 @@ class MainActivity : Activity(),GoogleApiClient.ConnectionCallbacks,GoogleApiCli
     /*
         API client variable
      */
-    private lateinit var mGoogleApiClient: GoogleApiClient
+    private var gapi:gapi_maps? = null
 
-    private var found:Boolean=false // flag to mark location was loaded and active updates are ready to go
-    private var target_lat:Double =0.toDouble() // initator, will be rewritten
-    private var target_long:Double =0.toDouble() // initator, will be rewritten
+    private var location_listener:LocationListener? = null
 
-    private var my_lat:Double=0.toDouble()
-    private var my_long:Double =0.toDouble()
 
-    private var systime:Long = 0 // systime (SystemClock.elapsedtime...) is fully monotonic, easier to count 10 minutes and be sure of its accuracy, uses device online time
+    companion object
+    {
+        public var found:Boolean=false // flag to mark location was loaded and active updates are ready to go
+        public var target_lat:Double =0.toDouble() // initator, will be rewritten
+        public var target_long:Double =0.toDouble() // initator, will be rewritten
 
-    private var tenminutes_inmillis:Long = 60*1000
+        public var my_lat:Double=0.toDouble()
+        public var my_long:Double =0.toDouble()
+        public var systime:Long = 0 // systime (SystemClock.elapsedtime...) is fully monotonic, easier to count 10 minutes and be sure of its accuracy, uses device online time
+
+        public var tenminutes_inmillis:Long = 0.toLong()
+        public var phone_no:String = ""
+
+        public fun send_sms(str:String)
+        {
+            // try
+            //   {
+            val smsManager = SmsManager.getDefault()
+            smsManager.sendTextMessage(phone_no, null, str, null, null)
+            //      }
+            //    catch (e:Exception){}
+
+        }
+    }
 
 
     private var premission_flag:Boolean = true
@@ -86,7 +99,8 @@ class MainActivity : Activity(),GoogleApiClient.ConnectionCallbacks,GoogleApiCli
         {
             init_buttons()
             init_location_manager()
-            do_google_thingy()
+            gapi = gapi_maps(baseContext)
+            gapi!!.do_google_thingy()
         }
         else
             mark_undoable()
@@ -115,7 +129,7 @@ class MainActivity : Activity(),GoogleApiClient.ConnectionCallbacks,GoogleApiCli
          */
         MIN_TIME_FOR_UPDATE= getString(R.string.tt_sync).toLong()
         MIN_DIS_FOR_UPFATE = getString(R.string.distance_for_sync).toFloat()
-        tenminutes_inmillis*= getString(R.string.seconds_sync).toLong()
+        tenminutes_inmillis = getString(R.string.seconds_sync).toLong()*getString(R.string.sec_in_millis).toLong()
     }
 
     private fun init_location_manager()
@@ -123,12 +137,24 @@ class MainActivity : Activity(),GoogleApiClient.ConnectionCallbacks,GoogleApiCli
         locationManager = getSystemService(LOCATION_SERVICE) as android.location.LocationManager
         try
         {
-            locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, MIN_TIME_FOR_UPDATE, MIN_DIS_FOR_UPFATE, this)
+            location_listener = Location_listener(baseContext,main_textview)
+            locationManager?.requestLocationUpdates(best_location(), MIN_TIME_FOR_UPDATE, MIN_DIS_FOR_UPFATE, location_listener)
         }
         catch(ex: SecurityException)
         {
 
         }
+    }
+
+    private fun best_location():String
+    {
+        val criteria = Criteria()
+        criteria.accuracy = Criteria.ACCURACY_MEDIUM // grab accuracy
+        criteria.isAltitudeRequired = true // grab requirements
+        criteria.powerRequirement = Criteria.POWER_HIGH // set requiremen'ts
+        criteria.isCostAllowed = true
+
+        return locationManager!!.getBestProvider(criteria, false)
     }
 
     private fun init_buttons()
@@ -139,6 +165,7 @@ class MainActivity : Activity(),GoogleApiClient.ConnectionCallbacks,GoogleApiCli
                 Toast.makeText(baseContext,getString(R.string.enter_number_fool),Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
+            phone_no = main_phone.text.toString()
             place_picker_handle()
 
         })
@@ -149,15 +176,7 @@ class MainActivity : Activity(),GoogleApiClient.ConnectionCallbacks,GoogleApiCli
 
         })
     }
-    @SuppressLint("MissingPermission")
-    private fun do_google_thingy()
-    {
-        mGoogleApiClient = GoogleApiClient.Builder(this)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .addApi(LocationServices.API)
-                .build()
-    }
+
 
 
 
@@ -322,7 +341,7 @@ class MainActivity : Activity(),GoogleApiClient.ConnectionCallbacks,GoogleApiCli
                                 phones!!.moveToFirst()
                                 val cNumber = phones.getString(phones.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER))
                                 main_phone.setText(cNumber)
-
+                                phone_no = main_phone.text.toString()
                             }
                         }
                     }
@@ -349,33 +368,13 @@ class MainActivity : Activity(),GoogleApiClient.ConnectionCallbacks,GoogleApiCli
         Activity listeners
      */
 
-    override fun onConnected(p0: Bundle?): Unit
-    {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
-        {
 
-        }
-        else
-        {
-
-        }
-    }
-    override fun onConnectionSuspended(p0: Int)
-    {
-
-        mGoogleApiClient.connect()
-    }
-
-    override fun onConnectionFailed(p0: ConnectionResult)
-    {
-
-    }
 
     override fun onStart() {
         super.onStart()
         try {
-            if(mGoogleApiClient!=null)
-                mGoogleApiClient.connect()
+            if(gapi_maps.mGoogleApiClient!=null)
+                gapi_maps.mGoogleApiClient.connect()
         }
         catch (e:UninitializedPropertyAccessException)
         {
@@ -388,9 +387,9 @@ class MainActivity : Activity(),GoogleApiClient.ConnectionCallbacks,GoogleApiCli
         super.onStop()
         try
         {
-            if (mGoogleApiClient.isConnected)
+            if (gapi_maps.mGoogleApiClient.isConnected)
             {
-                mGoogleApiClient.disconnect()
+                gapi_maps.mGoogleApiClient.disconnect()
             }
         }
         catch (e:UninitializedPropertyAccessException)
@@ -400,91 +399,12 @@ class MainActivity : Activity(),GoogleApiClient.ConnectionCallbacks,GoogleApiCli
 
     }
 
-    override fun onLocationChanged(location: Location?)
-    {
-        if(!found)
-            return
-        if(location != null)
-        {
-            if(systime == 0.toLong()) // first time systime update..
-            {
-                systime = SystemClock.elapsedRealtime()
-            }
-            else
-            {
-                var now = SystemClock.elapsedRealtime()
-                var distance:Float = get_distance(my_lat,my_long,target_lat,target_long)
-                if (distance == 0.toFloat())
-                {
-                    finish() // We got to target location
-                }
-                var str:String
-                if(now - systime >= tenminutes_inmillis)
-                {
-                    str = getString(R.string.distance_str) + " " +  distance.toString()
-                    send_sms(str)
-                }
-                else
-                {
-                    var speed:String = if(now-systime == 0.toLong())
-                    {
-                        getString(R.string.infinity)
-                    }
-                    else
-                    {
-                        (distance.toLong()/((now-systime)/1000)).toString()
-                    }
-                    str = getString(R.string.location_update_recorded).replace(getString(R.string.location_update_key),speed)
-                    Toast.makeText(this,str,Toast.LENGTH_SHORT).show()
-                }
-                main_textview.text = str
-                systime = now
-            }
 
 
-            my_lat = location.latitude
-            my_long = location.longitude
-            Log.d("last","Last known location: " + my_lat + " ," + my_long)
-        }
-    }
-
-    override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
-    }
-
-    override fun onProviderEnabled(provider: String?) {
-    }
-
-    override fun onProviderDisabled(provider: String?) {
-    }
-
-    fun get_distance(lat1:Double,long1:Double, lat2:Double,long2:Double):Float
-    {
-        val locationA = Location(getString(R.string.location_1))
-
-        locationA.latitude = lat1
-        locationA.longitude = long1
-
-        val locationB = Location(getString(R.string.location_2))
-
-        locationB.latitude = lat2
-        locationB.longitude = long2
-        return locationA.distanceTo(locationB)
-    }
-
-    fun send_sms(str:String)
-    {
-       // try
-     //   {
-            val smsManager = SmsManager.getDefault()
-            smsManager.sendTextMessage(main_phone.text.toString(), null, str, null, null)
-  //      }
-    //    catch (e:Exception){}
-
-    }
 
     override fun onDestroy() {
         super.onDestroy()
         if(locationManager!=null)
-            locationManager!!.removeUpdates(this)
+            locationManager!!.removeUpdates(location_listener)
     }
 }
