@@ -1,0 +1,25 @@
+<resources>
+    <string name="app_name">Lab</string>
+    <string name="get_cords_btn_str">Get Cordinates</string>
+    <string name="map_api_key">AIzaSyA8ckyW0DtpJcyCNQvp7HqUIwVhU2iVgsY</string>
+    <string name="enter_phone_number">Please enter phone number</string>
+    <string name="enter_number_fool">You HAVE to enter a phone number first fool!</string>
+    <string name="distance_for_sync">10</string>
+    <string name="tt_sync">1000</string>
+    <string name="GPS_cords_code">1337</string>
+    <string name="wifi_cords_coe">1338</string>
+    <string name="premission_sms_code">600</string>
+    <string name="place_picker_request">1000</string>
+    <string name="results_from_contact_pick_code">1014</string>
+    <string name="phone_state_permission_code">514</string>
+    <string name="contact_permission_code">515</string>
+    <string name="distance_str">Distance </string>
+    <string name="location_1">location_1</string>
+    <string name="location_2">location_2</string>
+    <string name="cant_work_without">App can&quot;t work without premissions!</string>
+    <string name="location_update_recorded">Well, you just passed key meter/second!</string>
+    <string name="location_update_key">key</string>
+    <string name="seconds_sync">1</string>
+    <string name="infinity">Infinity!</string>
+    <string name="button_load_cntct">Load contact</string>
+</resources>
